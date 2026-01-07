@@ -1,0 +1,9 @@
+google-genai==1.9.0
+feedparser
+PyPDF2
+markdown2
+sentence-transformers
+scikit-learn
+pytz
+python-dotenv
+requests
