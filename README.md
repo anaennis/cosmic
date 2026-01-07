@@ -59,40 +59,37 @@ cosmic/
 
 ### Usage
 
-Run the main script to fetch, rank, and summarize papers:
+Run the main script with optional CLI flags to customize the search:
 
 ```bash
+# Basic usage with defaults
 python main.py
+
+# Customize your search
+python main.py --interests "machine learning for drug discovery" --category "cs.LG" --limit 5
 ```
 
-The script will:
-1. Fetch recent papers from arXiv (astrophysics category by default)
-2. Rank them based on semantic similarity to your research interests
-3. Generate summaries for the top 3 most relevant papers
+**Available CLI flags:**
+- `--interests`: Research interests for semantic ranking (default: globular clusters)
+- `--category`: arXiv category to search (default: `astro-ph.GA`). See [arXiv categories](https://arxiv.org/category_taxonomy)
+- `--limit`: Number of top papers to summarize (default: 3)
 
 **Example output:**
 ```
-Fetching papers from ArXiv...
-Ranking papers by relevance...
-Summarizing top matches...
-
-Title: Globular Clusters in the Virgo Galaxy Cluster
-Summary: This paper presents a comprehensive study of globular cluster systems...
+INFO: Fetching papers from ArXiv category: astro-ph.GA...
+INFO: Ranking 47 papers by relevance to: 'I am interested in globular clusters in an extragalactic context.'...
+INFO: Summarizing top 3 matches...
+------------------------------
+TITLE: Globular Clusters in the Virgo Galaxy Cluster
+RELEVANCE SCORE: 0.7234
+SUMMARY: This paper presents a comprehensive study of globular cluster systems...
 ```
 
 ### Customization
 
-Edit the `interests` variable in [main.py](main.py) to match your research area:
-
-```python
-interests = "I am interested in globular clusters in an extragalactic context."
-```
-
-You can also modify:
-- **Category**: Change `category="astro-ph.GA"` in [arxiv_retriever.py](src/arxiv_retriever.py) (see [arXiv categories](https://arxiv.org/category_taxonomy))
-- **Max results**: Adjust `max_results` parameter in `fetch_arxiv_papers()`
+Beyond CLI flags, you can also modify:
+- **Max results**: Adjust `max_results` parameter in `fetch_arxiv_papers()` within [arxiv_retriever.py](src/arxiv_retriever.py)
 - **Embedding model**: Change `model_name` in [processor.py](src/processor.py) (default: `all-MiniLM-L6-v2`)
-- **Number of summaries**: Modify `ranked_papers[:3]` in [main.py](main.py)
 
 ## ⚙️ Configuration Options
 
@@ -101,7 +98,7 @@ You can also modify:
 | Embedding Model | Any Sentence-Transformers model | `all-MiniLM-L6-v2` |
 | arXiv Category | Any valid arXiv category | `astro-ph.GA` |
 | Max Results | 1-2000 | 100 |
-| LLM Provider | Google Gemini | `gemini-1.5-flash` |
+| LLM Provider | Google Gemini | `gemini-2.0-flash` |
 | Top Papers | Any number | 3 |
 
 ## 📚 Use Cases
@@ -116,7 +113,9 @@ You can also modify:
 
 **Semantic Ranking**: Uses sentence-transformers to encode user interests and paper abstracts, then computes cosine similarity to rank papers by relevance.
 
-**LLM Integration**: Leverages Google Gemini API for generating concise, readable summaries of complex academic abstracts.
+**Vectorized Batch Encoding**: Employs efficient batch processing for embedding generation, encoding all paper abstracts in a single model call rather than iteratively. This reduces computational overhead and significantly improves performance for large paper sets.
+
+**LLM Integration**: Leverages Google Gemini 2.0 Flash API (`gemini-2.0-flash`) for generating concise, readable summaries of complex academic abstracts.
 
 **Date Filtering**: Automatically calculates submission date ranges based on arXiv's daily update schedule (1400 EST), skipping weekends.
 
