@@ -3,7 +3,7 @@ import unittest
 
 import pytz
 
-from src.arxiv_retriever import extract_arxiv_metadata, get_arxiv_dates
+from src.arxiv_retriever import build_query_url, extract_arxiv_metadata, get_arxiv_dates
 
 EASTERN = pytz.timezone('US/Eastern')
 
@@ -45,6 +45,22 @@ class TestGetArxivDates(unittest.TestCase):
         now = datetime.datetime(2026, 10, 15, 1, tzinfo=pytz.utc)
         self.assertEqual(get_arxiv_dates(now),
                          ('202610131400', '202610141400'))
+
+
+class TestBuildQueryUrl(unittest.TestCase):
+    def test_single_category(self):
+        url = build_query_url('astro-ph.GA', '202610091400', '202610121400', 50)
+        self.assertIn('search_query=cat:astro-ph.GA+AND+submittedDate:'
+                      '[202610091400+TO+202610121400]', url)
+        self.assertIn('max_results=50', url)
+
+    def test_single_category_as_list(self):
+        self.assertEqual(build_query_url(['astro-ph.GA'], 'a', 'b'),
+                         build_query_url('astro-ph.GA', 'a', 'b'))
+
+    def test_multiple_categories_are_grouped(self):
+        url = build_query_url(['astro-ph.GA', 'astro-ph.CO'], 'a', 'b')
+        self.assertIn('search_query=%28cat:astro-ph.GA+OR+cat:astro-ph.CO%29+AND+', url)
 
 
 SAMPLE_FEED = """<?xml version="1.0" encoding="UTF-8"?>

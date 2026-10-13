@@ -14,6 +14,9 @@ This project was developed as part of the **Google 5‑Day GenAI Intensive Capst
 - **Simple CLI interface** for quick experimentation
 - **Lightweight dependencies** — runs locally with minimal setup
 - **Smart date filtering** — automatically retrieves recent papers (skipping weekends)
+- **Relevance cutoff** — skip papers that don't clear a minimum similarity score
+- **Saved digests** — write results to a Markdown or HTML file (with rendered LaTeX)
+- **Multiple categories** — search several arXiv categories in one run
 - **Only new papers** — remembers what you've already been shown so repeat runs surface fresh results
 
 ## 📁 Project Structure
@@ -25,11 +28,13 @@ cosmic/
 ├── requirements.txt           # Python dependencies
 ├── src/
 │   ├── arxiv_retriever.py    # Fetch papers from arXiv API
+│   ├── digest.py             # Markdown/HTML digest output
 │   ├── llm_handler.py        # Google Gemini integration
 │   ├── processor.py          # Semantic ranking using embeddings
 │   └── seen_store.py         # Remembers papers already shown
 └── tests/
-    ├── test_arxiv_retriever.py  # Date-window and parsing tests
+    ├── test_arxiv_retriever.py  # Date-window, query and parsing tests
+    ├── test_digest.py           # Digest rendering tests
     └── test_seen_store.py       # Seen-paper tracking tests
 ```
 
@@ -60,7 +65,7 @@ cosmic/
    GOOGLE_API_KEY=your_api_key_here
    ```
 
-   You can obtain a Google API key from [Google AI Studio](https://makersuite.google.com/app/apikey).
+   You can obtain a Google API key from [Google AI Studio](https://aistudio.google.com/apikey).
 
 ### Usage
 
@@ -72,12 +77,17 @@ python main.py
 
 # Customize your search
 python main.py --interests "machine learning for drug discovery" --category "cs.LG" --limit 5
+
+# Several categories, only strong matches, saved as a web page
+python main.py --category astro-ph.GA astro-ph.CO --min-score 0.35 --output digest.html
 ```
 
 **Available CLI flags:**
 - `--interests`: Research interests for semantic ranking (default: globular clusters)
-- `--category`: arXiv category to search (default: `astro-ph.GA`). See [arXiv categories](https://arxiv.org/category_taxonomy)
+- `--category`: One or more arXiv categories to search (default: `astro-ph.GA`). See [arXiv categories](https://arxiv.org/category_taxonomy)
 - `--limit`: Number of top papers to summarize (default: 3)
+- `--min-score`: Only summarize papers with at least this relevance score, 0–1 (default: 0, no cutoff). Around 0.3–0.4 is a reasonable starting point
+- `--output`: Also save results to a file — HTML if it ends in `.html`, Markdown otherwise
 - `--max-results`: Maximum number of papers to fetch from arXiv before ranking (default: 100)
 - `--model`: Gemini model used for summaries (default: `gemini-3.8-flash`)
 - `--timeout`: Seconds to wait for each summary before falling back to the abstract (default: 90)
@@ -105,7 +115,7 @@ SUMMARY: This paper presents a comprehensive study of globular cluster systems..
 python -m unittest discover -s tests -t .
 ```
 
-The tests cover the arXiv date-window logic, feed parsing, and seen-paper tracking, and need no network or API key.
+The tests cover the arXiv date window and query, feed parsing, seen-paper tracking, and digest rendering, and need no network or API key.
 
 ### Customization
 
@@ -117,7 +127,8 @@ Beyond CLI flags, you can also modify:
 | Component | Options | Default |
 |-----------|---------|---------|
 | Embedding Model | Any Sentence-Transformers model | `all-MiniLM-L6-v2` |
-| arXiv Category | Any valid arXiv category | `astro-ph.GA` |
+| arXiv Categories (`--category`) | One or more valid arXiv categories | `astro-ph.GA` |
+| Minimum Score (`--min-score`) | 0–1 | 0 (no cutoff) |
 | Max Results (`--max-results`) | 1-2000 | 100 |
 | LLM Model (`--model`) | Any Google Gemini model | `gemini-3.8-flash` |
 | Top Papers | Any number | 3 |

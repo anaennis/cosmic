@@ -1,11 +1,14 @@
 import os
 import argparse
+import datetime
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
 from src.arxiv_retriever import fetch_arxiv_papers, extract_arxiv_metadata
 from src.processor import PaperProcessor
 from src.llm_handler import GeminiHandler, DEFAULT_MODEL, DEFAULT_TIMEOUT_SECONDS
 from src.seen_store import SeenStore
+from src.digest import format_authors, write_digest
 
 # Setup basic logging for a more professional feel
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -26,16 +29,23 @@ def main():
         help="The research interests used to rank papers."
     )
     parser.add_argument(
-        "--category", 
-        type=str, 
-        default="astro-ph.GA", 
-        help="ArXiv category to search (e.g., astro-ph.SR, cs.LG)."
+        "--category",
+        type=str,
+        nargs="+",
+        default=["astro-ph.GA"],
+        help="One or more ArXiv categories to search (e.g., astro-ph.GA astro-ph.CO)."
     )
     parser.add_argument(
         "--limit", 
         type=int, 
         default=3, 
         help="Number of top papers to summarize."
+    )
+    parser.add_argument(
+        "--min-score",
+        type=float,
+        default=0.0,
+        help="Only summarize papers with at least this relevance score (0-1, e.g. 0.35)."
     )
     parser.add_argument(
         "--max-results",
@@ -66,6 +76,11 @@ def main():
         default=".cosmic_seen.json",
         help="File that records which papers have already been shown."
     )
+    parser.add_argument(
+        "--output",
+        type=str,
+        help="Also save results to this file: HTML if it ends in .html, Markdown otherwise."
+    )
 
     args = parser.parse_args()
 
@@ -74,13 +89,17 @@ def main():
         logging.error("GOOGLE_API_KEY not found. Please check your .env file.")
         return
 
-    logging.info(f"Fetching papers from ArXiv category: {args.category}...")
+    logging.info(f"Fetching papers from ArXiv categories: {', '.join(args.category)}...")
     try:
-        raw_xml = fetch_arxiv_papers(category=args.category, max_results=args.max_results)
+        raw_xml = fetch_arxiv_papers(categories=args.category, max_results=args.max_results)
         papers = extract_arxiv_metadata(raw_xml)
     except Exception as e:
         logging.error(f"Failed to fetch papers: {e}")
         return
+
+    if len(papers) >= args.max_results:
+        logging.warning(f"Got the maximum of {args.max_results} papers; some may be missing. "
+                        "Raise --max-results to fetch more.")
 
     if not papers:
         logging.warning("No papers found for the specified date range.")
@@ -101,26 +120,50 @@ def main():
     processor = PaperProcessor()
     ranked_papers = processor.rank_papers(papers, args.interests)
 
-    logging.info(f"Summarizing top {args.limit} matches...")
+    relevant = [p for p in ranked_papers if p['similarity'] >= args.min_score]
+    if not relevant:
+        logging.info(f"No papers scored at least {args.min_score} "
+                     f"(best was {ranked_papers[0]['similarity']:.2f}).")
+        return
+    if len(relevant) < len(ranked_papers):
+        logging.info(f"{len(relevant)} of {len(ranked_papers)} papers scored at least {args.min_score}.")
+    top_papers = relevant[:args.limit]
+
+    logging.info(f"Summarizing top {len(top_papers)} matches in parallel (this can take a minute)...")
     llm = GeminiHandler(api_key, model_id=args.model, timeout=args.timeout)
-    
+
     summarized = []
-    top_papers = ranked_papers[:args.limit]
-    for i, item in enumerate(top_papers, start=1):
-        print("-" * 30)
-        print(f"TITLE: {item['metadata']['title']}")
-        authors = item['metadata']['authors']
-        print(f"AUTHORS: {', '.join(authors[:3])}{' et al.' if len(authors) > 3 else ''}")
-        print(f"LINK: {item['metadata']['id']}")
-        print(f"RELEVANCE SCORE: {item['similarity']:.4f}")
-        logging.info(f"Waiting for summary {i}/{len(top_papers)} from {args.model}...")
+    results = []
+    # Request all summaries at once; results print in rank order as they arrive
+    with ThreadPoolExecutor(max_workers=max(len(top_papers), 1)) as pool:
+        futures = [pool.submit(llm.summarize_paper, item['metadata']['abstract'])
+                   for item in top_papers]
+        for i, (item, future) in enumerate(zip(top_papers, futures), start=1):
+            try:
+                summary = future.result()
+                summarized.append(item['metadata'])
+            except Exception as e:
+                logging.error(f"Failed to summarize paper {i}: {e}")
+                summary = item['metadata']['abstract']
+            results.append({**item, 'summary': summary})
+            print("-" * 30)
+            print(f"TITLE: {item['metadata']['title']}")
+            print(f"AUTHORS: {format_authors(item['metadata']['authors'])}")
+            print(f"LINK: {item['metadata']['id']}")
+            print(f"RELEVANCE SCORE: {item['similarity']:.4f}")
+            print(f"SUMMARY: {summary}\n")
+
+    if args.output:
+        header = {
+            'date': datetime.date.today().isoformat(),
+            'categories': args.category,
+            'interests': args.interests,
+        }
         try:
-            summary = llm.summarize_paper(item['metadata']['abstract'])
-            summarized.append(item['metadata'])
-        except Exception as e:
-            logging.error(f"Failed to summarize paper: {e}")
-            summary = item['metadata']['abstract']
-        print(f"SUMMARY: {summary}\n")
+            write_digest(args.output, results, header)
+            logging.info(f"Saved digest to {args.output}")
+        except OSError as e:
+            logging.error(f"Could not write digest: {e}")
 
     # Papers whose summary failed stay unseen so they show up again next run
     seen_store.mark_seen(summarized)

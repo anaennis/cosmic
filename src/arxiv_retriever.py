@@ -32,13 +32,23 @@ def _clean(text):
     """Collapses the line breaks and indentation arXiv puts inside titles/abstracts."""
     return " ".join(text.split())
 
-def fetch_arxiv_papers(category="astro-ph.GA", max_results=100, timeout=30):
-    """Fetches raw XML data from ArXiv."""
+def build_query_url(categories, start_date, end_date, max_results=100):
+    """Builds the arXiv API URL for one or more categories within a date window."""
+    if isinstance(categories, str):
+        categories = [categories]
+    # Parentheses are URL-encoded so the OR-group survives the query string
+    category_query = "+OR+".join(f"cat:{c}" for c in categories)
+    if len(categories) > 1:
+        category_query = f"%28{category_query}%29"
+    search_query = f"search_query={category_query}+AND+submittedDate:[{start_date}+TO+{end_date}]"
+    return (f"https://export.arxiv.org/api/query?{search_query}"
+            f"&sortBy=submittedDate&sortOrder=ascending&max_results={max_results}")
+
+def fetch_arxiv_papers(categories="astro-ph.GA", max_results=100, timeout=30):
+    """Fetches raw XML data from ArXiv for one category or a list of them."""
     start_date, end_date = get_arxiv_dates()
-    base_url = "https://export.arxiv.org/api/query?"
-    search_query = f"search_query=cat:{category}+AND+submittedDate:[{start_date}+TO+{end_date}]"
-    url = f"{base_url}{search_query}&sortBy=submittedDate&sortOrder=ascending&max_results={max_results}"
-    
+    url = build_query_url(categories, start_date, end_date, max_results)
+
     response = requests.get(url, timeout=timeout)
     response.raise_for_status()
     return response.text
