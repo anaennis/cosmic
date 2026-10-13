@@ -1,0 +1,63 @@
+name: Daily digest
+
+on:
+  schedule:
+    # 14:00 UTC, Monday-Friday = 7am Pacific in summer, 6am in winter.
+    # Each of these runs picks up the arXiv batch announced the evening before.
+    - cron: "0 14 * * 1-5"
+  workflow_dispatch: # lets you run it by hand from the Actions tab
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Edit these to change what the daily email contains
+      INTERESTS: "I am interested in globular clusters in an extragalactic context."
+      CATEGORIES: "astro-ph.GA astro-ph.CO"
+      LIMIT: "5"
+      MIN_SCORE: "0.3"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # The CPU-only build of PyTorch is far smaller than the default one
+      - name: Install dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+
+      - name: Cache embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: huggingface-all-MiniLM-L6-v2
+
+      - name: Build and email digest
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        # $CATEGORIES is left unquoted on purpose so each category becomes its own argument
+        run: |
+          python main.py \
+            --interests "$INTERESTS" \
+            --category $CATEGORIES \
+            --limit "$LIMIT" \
+            --min-score "$MIN_SCORE" \
+            --output digest.html \
+            --email --quiet
+
+      - name: Keep a copy of the digest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest
+          path: digest.html
+          if-no-files-found: ignore
+          retention-days: 14

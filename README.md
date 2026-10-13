@@ -17,24 +17,29 @@ This project was developed as part of the **Google 5‑Day GenAI Intensive Capst
 - **Relevance cutoff** — skip papers that don't clear a minimum similarity score
 - **Saved digests** — write results to a Markdown or HTML file (with rendered LaTeX)
 - **Multiple categories** — search several arXiv categories in one run
+- **Daily email** — a GitHub Actions workflow emails you each morning's digest
 - **Only new papers** — remembers what you've already been shown so repeat runs surface fresh results
 
 ## 📁 Project Structure
 
 ```
 cosmic/
+├── .github/workflows/
+│   └── daily-digest.yml       # Scheduled daily email (GitHub Actions)
 ├── LICENSE
 ├── main.py                    # Main entry point
 ├── requirements.txt           # Python dependencies
 ├── src/
 │   ├── arxiv_retriever.py    # Fetch papers from arXiv API
 │   ├── digest.py             # Markdown/HTML digest output
+│   ├── emailer.py            # Sends the digest by email
 │   ├── llm_handler.py        # Google Gemini integration
 │   ├── processor.py          # Semantic ranking using embeddings
 │   └── seen_store.py         # Remembers papers already shown
 └── tests/
     ├── test_arxiv_retriever.py  # Date-window, query and parsing tests
     ├── test_digest.py           # Digest rendering tests
+    ├── test_emailer.py          # Email settings and sending tests
     └── test_seen_store.py       # Seen-paper tracking tests
 ```
 
@@ -91,7 +96,8 @@ python main.py --output digest.html --quiet
 - `--limit`: Number of top papers to summarize (default: 3)
 - `--min-score`: Only summarize papers with at least this relevance score, 0–1 (default: 0, no cutoff). Around 0.3–0.4 is a reasonable starting point
 - `--output`: Also save results to a file — HTML if it ends in `.html`, Markdown otherwise
-- `--quiet`: Don't print papers in the terminal, only save them (requires `--output`)
+- `--email`: Email the digest (see [Daily email digest](#-daily-email-digest))
+- `--quiet`: Don't print papers in the terminal (requires `--output` or `--email`)
 - `--max-results`: Maximum number of papers to fetch from arXiv before ranking (default: 100)
 - `--model`: Gemini model used for summaries (default: `gemini-3.8-flash`)
 - `--thinking`: How much Gemini reasons before answering — `minimal`, `low`, `medium` or `high` (default: `low`). Lower is faster
@@ -114,13 +120,35 @@ RELEVANCE SCORE: 0.7234
 SUMMARY: This paper presents a comprehensive study of globular cluster systems...
 ```
 
+### 📬 Daily Email Digest
+
+The workflow in [.github/workflows/daily-digest.yml](.github/workflows/daily-digest.yml) runs Cosmic on GitHub's servers every weekday at 14:00 UTC (7am Pacific in summer, 6am in winter) and emails you the digest. It works even when your computer is off.
+
+1. **Create a Gmail app password** for the account that will send the email. The account needs 2-Step Verification turned on; then go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) and create one.
+2. **Add four repository secrets** under *Settings → Secrets and variables → Actions → New repository secret*:
+
+   | Secret | Value |
+   |--------|-------|
+   | `GOOGLE_API_KEY` | Your Gemini API key |
+   | `EMAIL_USER` | The Gmail address that sends the digest |
+   | `EMAIL_APP_PASSWORD` | The app password from step 1 |
+   | `EMAIL_TO` | Where to send it (comma-separate several addresses) |
+
+3. **Test it** from the *Actions* tab: choose *Daily digest* → *Run workflow*.
+
+To change the topic, categories, number of papers or score cutoff, edit the `env:` block at the top of the workflow file. If a run fails, GitHub emails you a notification, and each run's digest is also kept for 14 days as a downloadable artifact on its run page.
+
+To email yourself from your own machine instead, add the same `EMAIL_*` values to `.env` and run `python main.py --email`.
+
+Note: email apps don't run scripts, so LaTeX in titles and summaries shows as plain text like `$z>2$` in the email. The `--output` HTML file renders it properly in a browser.
+
 ### Running Tests
 
 ```bash
 python -m unittest discover -s tests -t .
 ```
 
-The tests cover the arXiv date window and query, feed parsing, seen-paper tracking, and digest rendering, and need no network or API key.
+The tests cover the arXiv date window and query, feed parsing, seen-paper tracking, digest rendering, and email sending, and need no network or API key.
 
 ### Customization
 
