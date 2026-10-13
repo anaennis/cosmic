@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
 from src.arxiv_retriever import fetch_arxiv_papers, extract_arxiv_metadata
 from src.processor import PaperProcessor
-from src.llm_handler import GeminiHandler, DEFAULT_MODEL, DEFAULT_TIMEOUT_SECONDS
+from src.llm_handler import GeminiHandler, DEFAULT_MODEL, DEFAULT_TIMEOUT_SECONDS, DEFAULT_THINKING_LEVEL, THINKING_LEVELS
 from src.seen_store import SeenStore
 from src.digest import format_authors, write_digest
 
@@ -58,6 +58,12 @@ def main():
         type=str,
         default=DEFAULT_MODEL,
         help="Gemini model used for summaries."
+    )
+    parser.add_argument(
+        "--thinking",
+        choices=THINKING_LEVELS,
+        default=DEFAULT_THINKING_LEVEL,
+        help="How much the model reasons before answering; lower is faster."
     )
     parser.add_argument(
         "--timeout",
@@ -130,7 +136,8 @@ def main():
     top_papers = relevant[:args.limit]
 
     logging.info(f"Summarizing top {len(top_papers)} matches in parallel (this can take a minute)...")
-    llm = GeminiHandler(api_key, model_id=args.model, timeout=args.timeout)
+    llm = GeminiHandler(api_key, model_id=args.model, timeout=args.timeout,
+                        thinking_level=args.thinking)
 
     summarized = []
     results = []

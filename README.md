@@ -42,7 +42,7 @@ cosmic/
 
 ### Prerequisites
 
-- Python 3.9 or higher
+- Python 3.10 or higher
 - A Google API key (for Gemini LLM)
 
 ### Installation
@@ -90,6 +90,7 @@ python main.py --category astro-ph.GA astro-ph.CO --min-score 0.35 --output dige
 - `--output`: Also save results to a file — HTML if it ends in `.html`, Markdown otherwise
 - `--max-results`: Maximum number of papers to fetch from arXiv before ranking (default: 100)
 - `--model`: Gemini model used for summaries (default: `gemini-3.8-flash`)
+- `--thinking`: How much Gemini reasons before answering — `minimal`, `low`, `medium` or `high` (default: `low`). Lower is faster
 - `--timeout`: Seconds to wait for each summary before falling back to the abstract (default: 90)
 - `--show-seen`: Include papers already shown in previous runs
 - `--seen-file`: Where to record shown papers (default: `.cosmic_seen.json`)

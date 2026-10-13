@@ -1,4 +1,4 @@
-google-genai==1.9.0
+google-genai==2.30.1
 sentence-transformers
 scikit-learn
 pytz

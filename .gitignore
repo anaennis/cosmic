@@ -2,3 +2,5 @@
 .cosmic_seen.json
 __pycache__/
 .venv/
+digest*.html
+digest*.md
