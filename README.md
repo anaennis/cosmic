@@ -154,6 +154,8 @@ Beyond CLI flags, you can also modify:
 
 **LLM Integration**: Leverages the Google Gemini API (default `gemini-3.8-flash`, configurable with `--model`) for generating concise, readable summaries of complex academic abstracts.
 
+**Retries**: Temporary Gemini errors (503 "high demand", 429 rate limits, timeouts) are retried up to twice with a short backoff. If a summary still fails, the abstract is shown instead and the paper stays unseen so it comes back next run.
+
 **Date Filtering**: Automatically calculates the submission window for the most recently announced arXiv batch (submissions close at 1400 ET, announced at 2000 ET), skipping weekends so Monday's batch covers Friday 1400 → Monday 1400.
 
 ## 🤝 Contributing
