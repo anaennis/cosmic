@@ -80,6 +80,9 @@ python main.py --interests "machine learning for drug discovery" --category "cs.
 
 # Several categories, only strong matches, saved as a web page
 python main.py --category astro-ph.GA astro-ph.CO --min-score 0.35 --output digest.html
+
+# Only save the digest, don't print papers in the terminal
+python main.py --output digest.html --quiet
 ```
 
 **Available CLI flags:**
@@ -88,6 +91,7 @@ python main.py --category astro-ph.GA astro-ph.CO --min-score 0.35 --output dige
 - `--limit`: Number of top papers to summarize (default: 3)
 - `--min-score`: Only summarize papers with at least this relevance score, 0–1 (default: 0, no cutoff). Around 0.3–0.4 is a reasonable starting point
 - `--output`: Also save results to a file — HTML if it ends in `.html`, Markdown otherwise
+- `--quiet`: Don't print papers in the terminal, only save them (requires `--output`)
 - `--max-results`: Maximum number of papers to fetch from arXiv before ranking (default: 100)
 - `--model`: Gemini model used for summaries (default: `gemini-3.8-flash`)
 - `--thinking`: How much Gemini reasons before answering — `minimal`, `low`, `medium` or `high` (default: `low`). Lower is faster

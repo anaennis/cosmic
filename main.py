@@ -87,8 +87,15 @@ def main():
         type=str,
         help="Also save results to this file: HTML if it ends in .html, Markdown otherwise."
     )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Don't print papers in the terminal (requires --output)."
+    )
 
     args = parser.parse_args()
+    if args.quiet and not args.output:
+        parser.error("--quiet needs --output, otherwise the results would go nowhere.")
 
     # --- Execution ---
     if not api_key:
@@ -153,6 +160,8 @@ def main():
                 logging.error(f"Failed to summarize paper {i}: {e}")
                 summary = item['metadata']['abstract']
             results.append({**item, 'summary': summary})
+            if args.quiet:
+                continue
             print("-" * 30)
             print(f"TITLE: {item['metadata']['title']}")
             print(f"AUTHORS: {format_authors(item['metadata']['authors'])}")
