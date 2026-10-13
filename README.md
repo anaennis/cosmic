@@ -26,6 +26,8 @@ cosmic/
     ├── arxiv_retriever.py    # Fetch papers from arXiv API
     ├── llm_handler.py        # Google Gemini integration
     └── processor.py          # Semantic ranking using embeddings
+└── tests/
+    └── test_arxiv_retriever.py  # Date-window and parsing tests
 ```
 
 ## 🚀 Getting Started
@@ -73,6 +75,8 @@ python main.py --interests "machine learning for drug discovery" --category "cs.
 - `--interests`: Research interests for semantic ranking (default: globular clusters)
 - `--category`: arXiv category to search (default: `astro-ph.GA`). See [arXiv categories](https://arxiv.org/category_taxonomy)
 - `--limit`: Number of top papers to summarize (default: 3)
+- `--max-results`: Maximum number of papers to fetch from arXiv before ranking (default: 100)
+- `--model`: Gemini model used for summaries (default: `gemini-2.5-flash`)
 
 **Example output:**
 ```
@@ -81,14 +85,23 @@ INFO: Ranking 47 papers by relevance to: 'I am interested in globular clusters i
 INFO: Summarizing top 3 matches...
 ------------------------------
 TITLE: Globular Clusters in the Virgo Galaxy Cluster
+AUTHORS: A. Author, B. Author, C. Author et al.
+LINK: http://arxiv.org/abs/2610.01234v1
 RELEVANCE SCORE: 0.7234
 SUMMARY: This paper presents a comprehensive study of globular cluster systems...
 ```
 
+### Running Tests
+
+```bash
+python -m unittest discover -s tests -t .
+```
+
+The tests cover the arXiv date-window logic and feed parsing, and need no network or API key.
+
 ### Customization
 
 Beyond CLI flags, you can also modify:
-- **Max results**: Adjust `max_results` parameter in `fetch_arxiv_papers()` within [arxiv_retriever.py](src/arxiv_retriever.py)
 - **Embedding model**: Change `model_name` in [processor.py](src/processor.py) (default: `all-MiniLM-L6-v2`)
 
 ## ⚙️ Configuration Options
@@ -97,8 +110,8 @@ Beyond CLI flags, you can also modify:
 |-----------|---------|---------|
 | Embedding Model | Any Sentence-Transformers model | `all-MiniLM-L6-v2` |
 | arXiv Category | Any valid arXiv category | `astro-ph.GA` |
-| Max Results | 1-2000 | 100 |
-| LLM Provider | Google Gemini | `gemini-2.0-flash` |
+| Max Results (`--max-results`) | 1-2000 | 100 |
+| LLM Model (`--model`) | Any Google Gemini model | `gemini-2.5-flash` |
 | Top Papers | Any number | 3 |
 
 ## 📚 Use Cases
@@ -115,9 +128,9 @@ Beyond CLI flags, you can also modify:
 
 **Vectorized Batch Encoding**: Employs efficient batch processing for embedding generation, encoding all paper abstracts in a single model call rather than iteratively. This reduces computational overhead and significantly improves performance for large paper sets.
 
-**LLM Integration**: Leverages Google Gemini 2.0 Flash API (`gemini-2.0-flash`) for generating concise, readable summaries of complex academic abstracts.
+**LLM Integration**: Leverages the Google Gemini API (default `gemini-2.5-flash`, configurable with `--model`) for generating concise, readable summaries of complex academic abstracts.
 
-**Date Filtering**: Automatically calculates submission date ranges based on arXiv's daily update schedule (1400 EST), skipping weekends.
+**Date Filtering**: Automatically calculates the submission window for the most recently announced arXiv batch (submissions close at 1400 ET, announced at 2000 ET), skipping weekends so Monday's batch covers Friday 1400 → Monday 1400.
 
 ## 🤝 Contributing
 

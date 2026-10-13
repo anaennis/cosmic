@@ -4,7 +4,7 @@ import logging
 from dotenv import load_dotenv
 from src.arxiv_retriever import fetch_arxiv_papers, extract_arxiv_metadata
 from src.processor import PaperProcessor
-from src.llm_handler import GeminiHandler
+from src.llm_handler import GeminiHandler, DEFAULT_MODEL
 
 # Setup basic logging for a more professional feel
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -15,8 +15,6 @@ def main():
     
     # --- CLI Setup ---
     parser = argparse.ArgumentParser(description="ArXiv Paper Ranker and Summarizer")
-    
-    parser.add_init_subparsers
     parser.add_argument(
         "--interests", 
         type=str, 
@@ -35,6 +33,18 @@ def main():
         default=3, 
         help="Number of top papers to summarize."
     )
+    parser.add_argument(
+        "--max-results",
+        type=int,
+        default=100,
+        help="Maximum number of papers to fetch from ArXiv before ranking."
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=DEFAULT_MODEL,
+        help="Gemini model used for summaries."
+    )
 
     args = parser.parse_args()
 
@@ -45,7 +55,7 @@ def main():
 
     logging.info(f"Fetching papers from ArXiv category: {args.category}...")
     try:
-        raw_xml = fetch_arxiv_papers(category=args.category)
+        raw_xml = fetch_arxiv_papers(category=args.category, max_results=args.max_results)
         papers = extract_arxiv_metadata(raw_xml)
     except Exception as e:
         logging.error(f"Failed to fetch papers: {e}")
@@ -60,13 +70,20 @@ def main():
     ranked_papers = processor.rank_papers(papers, args.interests)
 
     logging.info(f"Summarizing top {args.limit} matches...")
-    llm = GeminiHandler(api_key)
+    llm = GeminiHandler(api_key, model_id=args.model)
     
     for item in ranked_papers[:args.limit]:
         print("-" * 30)
         print(f"TITLE: {item['metadata']['title']}")
+        authors = item['metadata']['authors']
+        print(f"AUTHORS: {', '.join(authors[:3])}{' et al.' if len(authors) > 3 else ''}")
+        print(f"LINK: {item['metadata']['id']}")
         print(f"RELEVANCE SCORE: {item['similarity']:.4f}")
-        summary = llm.summarize_paper(item['metadata']['abstract'])
+        try:
+            summary = llm.summarize_paper(item['metadata']['abstract'])
+        except Exception as e:
+            logging.error(f"Failed to summarize paper: {e}")
+            summary = item['metadata']['abstract']
         print(f"SUMMARY: {summary}\n")
 
 if __name__ == "__main__":
