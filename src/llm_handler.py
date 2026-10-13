@@ -1,10 +1,16 @@
 from google import genai
+from google.genai import types
 
-DEFAULT_MODEL = 'gemini-2.5-flash'
+DEFAULT_MODEL = 'gemini-3.8-flash'
+DEFAULT_TIMEOUT_SECONDS = 90
 
 class GeminiHandler:
-    def __init__(self, api_key, model_id=DEFAULT_MODEL):
-        self.client = genai.Client(api_key=api_key)
+    def __init__(self, api_key, model_id=DEFAULT_MODEL, timeout=DEFAULT_TIMEOUT_SECONDS):
+        # The SDK expects the timeout in milliseconds
+        self.client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=timeout * 1000)
+        )
         self.model_id = model_id
 
     def summarize_paper(self, text):

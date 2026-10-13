@@ -14,6 +14,7 @@ This project was developed as part of the **Google 5‑Day GenAI Intensive Capst
 - **Simple CLI interface** for quick experimentation
 - **Lightweight dependencies** — runs locally with minimal setup
 - **Smart date filtering** — automatically retrieves recent papers (skipping weekends)
+- **Only new papers** — remembers what you've already been shown so repeat runs surface fresh results
 
 ## 📁 Project Structure
 
@@ -22,19 +23,21 @@ cosmic/
 ├── LICENSE
 ├── main.py                    # Main entry point
 ├── requirements.txt           # Python dependencies
-└── src/
-    ├── arxiv_retriever.py    # Fetch papers from arXiv API
-    ├── llm_handler.py        # Google Gemini integration
-    └── processor.py          # Semantic ranking using embeddings
+├── src/
+│   ├── arxiv_retriever.py    # Fetch papers from arXiv API
+│   ├── llm_handler.py        # Google Gemini integration
+│   ├── processor.py          # Semantic ranking using embeddings
+│   └── seen_store.py         # Remembers papers already shown
 └── tests/
-    └── test_arxiv_retriever.py  # Date-window and parsing tests
+    ├── test_arxiv_retriever.py  # Date-window and parsing tests
+    └── test_seen_store.py       # Seen-paper tracking tests
 ```
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.9 or higher
 - A Google API key (for Gemini LLM)
 
 ### Installation
@@ -76,7 +79,12 @@ python main.py --interests "machine learning for drug discovery" --category "cs.
 - `--category`: arXiv category to search (default: `astro-ph.GA`). See [arXiv categories](https://arxiv.org/category_taxonomy)
 - `--limit`: Number of top papers to summarize (default: 3)
 - `--max-results`: Maximum number of papers to fetch from arXiv before ranking (default: 100)
-- `--model`: Gemini model used for summaries (default: `gemini-2.5-flash`)
+- `--model`: Gemini model used for summaries (default: `gemini-3.8-flash`)
+- `--timeout`: Seconds to wait for each summary before falling back to the abstract (default: 90)
+- `--show-seen`: Include papers already shown in previous runs
+- `--seen-file`: Where to record shown papers (default: `.cosmic_seen.json`)
+
+**Seen papers:** Each run records the papers it successfully summarized in `.cosmic_seen.json` and skips them next time. Running twice on the same day shows the next most relevant papers from that day's batch. Delete the file or pass `--show-seen` to start fresh.
 
 **Example output:**
 ```
@@ -97,7 +105,7 @@ SUMMARY: This paper presents a comprehensive study of globular cluster systems..
 python -m unittest discover -s tests -t .
 ```
 
-The tests cover the arXiv date-window logic and feed parsing, and need no network or API key.
+The tests cover the arXiv date-window logic, feed parsing, and seen-paper tracking, and need no network or API key.
 
 ### Customization
 
@@ -111,7 +119,7 @@ Beyond CLI flags, you can also modify:
 | Embedding Model | Any Sentence-Transformers model | `all-MiniLM-L6-v2` |
 | arXiv Category | Any valid arXiv category | `astro-ph.GA` |
 | Max Results (`--max-results`) | 1-2000 | 100 |
-| LLM Model (`--model`) | Any Google Gemini model | `gemini-2.5-flash` |
+| LLM Model (`--model`) | Any Google Gemini model | `gemini-3.8-flash` |
 | Top Papers | Any number | 3 |
 
 ## 📚 Use Cases
@@ -128,7 +136,7 @@ Beyond CLI flags, you can also modify:
 
 **Vectorized Batch Encoding**: Employs efficient batch processing for embedding generation, encoding all paper abstracts in a single model call rather than iteratively. This reduces computational overhead and significantly improves performance for large paper sets.
 
-**LLM Integration**: Leverages the Google Gemini API (default `gemini-2.5-flash`, configurable with `--model`) for generating concise, readable summaries of complex academic abstracts.
+**LLM Integration**: Leverages the Google Gemini API (default `gemini-3.8-flash`, configurable with `--model`) for generating concise, readable summaries of complex academic abstracts.
 
 **Date Filtering**: Automatically calculates the submission window for the most recently announced arXiv batch (submissions close at 1400 ET, announced at 2000 ET), skipping weekends so Monday's batch covers Friday 1400 → Monday 1400.
 
