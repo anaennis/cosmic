@@ -134,7 +134,15 @@ The workflow in [.github/workflows/daily-digest.yml](.github/workflows/daily-dig
    | `EMAIL_APP_PASSWORD` | The app password from step 1 |
    | `EMAIL_TO` | Where to send it (comma-separate several addresses) |
 
-3. **Test it** from the *Actions* tab: choose *Daily digest* → *Run workflow*.
+   Paste only the value, without the `NAME=` part or quotes (for `GOOGLE_API_KEY`, the part after `=` in your `.env`).
+
+3. **Test it** from the *Actions* tab: choose *Daily digest* → *Run workflow*. The first run takes a few minutes while it installs PyTorch.
+
+If no email arrives, check your spam folder, then open the run's log:
+
+- `Missing email settings: ...`: a secret is missing or its name is misspelled.
+- `535 ... Username and Password not accepted`: the app password is wrong, or `EMAIL_USER` isn't the account it belongs to.
+- `No papers scored at least 0.3`: it worked, but nothing matched strongly enough today, so no email was sent.
 
 To change the topic, categories, number of papers or score cutoff, edit the `env:` block at the top of the workflow file. If a run fails, GitHub emails you a notification, and each run's digest is also kept for 14 days as a downloadable artifact on its run page.
 
