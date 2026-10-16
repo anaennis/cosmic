@@ -2,6 +2,17 @@ import datetime
 import pytz
 import requests
 import xml.etree.ElementTree as ET
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+# arXiv often answers 429 "Rate exceeded" or 503, or stalls, for a short while.
+# Retries wait 5s, 10s, then 20s (or as long as arXiv's Retry-After asks).
+ARXIV_RETRY = Retry(
+    total=3,
+    backoff_factor=5,
+    status_forcelist=(429, 500, 502, 503, 504),
+    raise_on_status=False,
+)
 
 def get_arxiv_dates(now=None):
     """Calculates the date range for arXiv submissions.
@@ -49,7 +60,9 @@ def fetch_arxiv_papers(categories="astro-ph.GA", max_results=100, timeout=30):
     start_date, end_date = get_arxiv_dates()
     url = build_query_url(categories, start_date, end_date, max_results)
 
-    response = requests.get(url, timeout=timeout)
+    with requests.Session() as session:
+        session.mount("https://", HTTPAdapter(max_retries=ARXIV_RETRY))
+        response = session.get(url, timeout=timeout)
     response.raise_for_status()
     return response.text
 

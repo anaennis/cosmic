@@ -3,7 +3,7 @@ import unittest
 
 import pytz
 
-from src.arxiv_retriever import build_query_url, extract_arxiv_metadata, get_arxiv_dates
+from src.arxiv_retriever import ARXIV_RETRY, build_query_url, extract_arxiv_metadata, get_arxiv_dates
 
 EASTERN = pytz.timezone('US/Eastern')
 
@@ -94,6 +94,16 @@ class TestExtractArxivMetadata(unittest.TestCase):
     def test_empty_feed(self):
         feed = '<feed xmlns="http://www.w3.org/2005/Atom"></feed>'
         self.assertEqual(extract_arxiv_metadata(feed), [])
+
+
+class TestArxivRetry(unittest.TestCase):
+    def test_retries_rate_limits_and_server_errors(self):
+        for status in (429, 500, 502, 503, 504):
+            self.assertTrue(ARXIV_RETRY.is_retry('GET', status), status)
+
+    def test_does_not_retry_client_errors(self):
+        for status in (400, 404):
+            self.assertFalse(ARXIV_RETRY.is_retry('GET', status), status)
 
 
 if __name__ == '__main__':
